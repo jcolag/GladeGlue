@@ -7,6 +7,8 @@ include REXML
 # Pull out the class and id
 def scanChildren(widgets, signals, obj, path)
     obj.elements.each(path) do |el|
+        next if el.attributes["class"] == "GtkAdjustment"
+puts el.attributes["class"]
         widgets[el.attributes["id"]] = el.attributes["class"]
         scanChildren(widgets, signals, el, "child/object")
         el.elements.each("signal") do |sig|
