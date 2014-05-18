@@ -8,7 +8,6 @@ include REXML
 def scanChildren(widgets, signals, obj, path)
     obj.elements.each(path) do |el|
         next if el.attributes["class"] == "GtkAdjustment"
-puts el.attributes["class"]
         widgets[el.attributes["id"]] = el.attributes["class"]
         scanChildren(widgets, signals, el, "child/object")
         el.elements.each("signal") do |sig|
@@ -71,7 +70,7 @@ File.open("#{basename}_glade.h", 'w') do |header|
     elements.each do |k,v|
         header.puts "extern #{v} * #{basename}_#{k};"
     end
-    header.puts "\nvoid #{loadname} (void);"
+    header.puts "\nvoid #{loadname} (int);"
 end
 
 # Generate the C glue file to define and load the external variables
@@ -87,7 +86,7 @@ C_HEAD
     end
     source.puts <<C_BUILD
 
-void #{loadname} (void) {
+void #{loadname} (int unref) {
   GtkBuilder *builder = gtk_builder_new ();
   gtk_builder_add_from_file (builder, \"#{basename}.glade\", NULL);
   gtk_builder_connect_signals (builder, NULL);      
@@ -96,7 +95,9 @@ C_BUILD
         source.puts "  #{basename}_#{k} = (#{v} *)GTK_WIDGET(gtk_builder_get_object(builder, \"#{k}\"));"
     end
     source.puts <<C_FOOT
-  g_object_unref (G_OBJECT (builder));
+  if (unref) {
+    g_object_unref (G_OBJECT (builder));
+  }
 }
 
 C_FOOT
