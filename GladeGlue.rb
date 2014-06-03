@@ -70,13 +70,14 @@ File.open("#{basename}_glade.h", 'w') do |header|
   elements.each do |k, v|
     header.puts "extern #{v} * #{basename}_#{k};"
   end
-  header.puts "\nvoid #{loadname} (int);"
+  header.puts "\nvoid #{loadname} (char *, int);"
 end
 
 # Generate the C glue file to define and load the external variables
 File.open("#{basename}_glade.c", 'w') do |source|
   source.puts comment
   source.puts <<C_HEAD
+#include <string.h>
 #include <gtk/gtk.h>
 #include \"#{basename}_glade.h\"
 
@@ -86,9 +87,14 @@ C_HEAD
   end
   source.puts <<C_BUILD
 
-void #{loadname} (int unref) {
-  GtkBuilder *builder = gtk_builder_new ();
-  gtk_builder_add_from_file (builder, \"#{basename}.glade\", NULL);
+void #{loadname} (char *path, int unref) {
+  char filename[256];
+  GtkBuilder *builder;
+
+  strcpy(filename, path);
+  strcat(filename, \"#{basename}.glade\");
+  builder = gtk_builder_new ();
+  gtk_builder_add_from_file (builder, filename, NULL);
   gtk_builder_connect_signals (builder, NULL);
 C_BUILD
   buildcmd = 'GTK_WIDGET(gtk_builder_get_object(builder'
