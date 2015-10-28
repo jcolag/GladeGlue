@@ -9,11 +9,13 @@ include REXML
 # Pull out the class and id
 def scan_children(widgets, signals, obj, path)
   obj.elements.each(path) do |el|
-    next if el.attributes['class'] == 'GtkAdjustment'
-    widgets[el.attributes['id']] = el.attributes['class']
+    elattr = el.attributes
+    elclass = elattr['class']
+    next if elclass == 'GtkAdjustment'
+    widgets[elattr['id']] = elclass
     scan_children(widgets, signals, el, 'child/object')
     el.elements.each('signal') do |sig|
-      signals[sig.attributes['handler']] = el.attributes['class']
+      signals[sig.attributes['handler']] = elclass
     end
   end
 end
@@ -42,6 +44,8 @@ comment = <<END_COMMENT
 END_COMMENT
 scan_children(elements, signals, gladexml, 'interface/object')
 missing_handlers = []
+
+# Structure to hold matched portions/locations
 MatchLine = Struct.new(:path, :line)
 signals.each do |hand, klass|
   vname = klass.downcase.sub(/gtk/, '')
