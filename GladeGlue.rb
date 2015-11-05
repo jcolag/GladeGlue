@@ -5,16 +5,36 @@ require 'find'
 
 include REXML
 
-# Recursively search the Glade file for objects
-# Pull out the class and id
-def scan_children(widgets, signals, obj, path)
-  obj.elements.each(path) do |el|
-    elattr = el.attributes
-    elclass = elattr['class']
-    next if elclass == 'GtkAdjustment'
-    widgets[elattr['id']] = elclass
-    scan_children(widgets, signals, el, 'child/object')
-    el.elements.each('signal') do |sig|
+# Utility class to extract useful data from the Glade description.
+class Scanner
+  @widgets = nil
+  @signals = nil
+  @object = nil
+
+  attr_reader :widgets, :signals
+
+  def initialize(obj)
+    @object = obj
+    @widgets = {}
+    @signals = {}
+  end
+
+  # Recursively search the Glade file for objects
+  # Pull out the class and id
+  def children(path)
+    @object.elements.each(path) do |el|
+      elattr = el.attributes
+      elclass = elattr['class']
+      next if elclass == 'GtkAdjustment'
+      process(el, elattr, elclass)
+    end
+  end
+
+  # Dig deeper into the structure
+  def process(element, elattr, elclass)
+    @widgets[elattr['id']] = elclass
+    children('child/object')
+    element.elements.each('signal') do |sig|
       signals[sig.attributes['handler']] = elclass
     end
   end
@@ -33,8 +53,6 @@ basename = ARGV[0]
 # Open/parse the file and initialize
 gladefile = File.new(basename + '.glade')
 gladexml = Document.new gladefile
-elements = {}
-signals = {}
 loadname = 'load_' + basename + '_from_file'
 comment = <<END_COMMENT
 /* DO NOT EDIT.  This is automatically generated glue code from
@@ -42,12 +60,13 @@ comment = <<END_COMMENT
  */
 
 END_COMMENT
-scan_children(elements, signals, gladexml, 'interface/object')
+scan = Scanner.new(gladexml)
+scan.children('interface/object')
 missing_handlers = []
 
 # Structure to hold matched portions/locations
 MatchLine = Struct.new(:path, :line)
-signals.each do |hand, klass|
+scan.signals.each do |hand, klass|
   vname = klass.downcase.sub(/gtk/, '')
   signature = "void #{hand} (#{klass} *#{vname}, gpointer user_data);"
 
@@ -71,7 +90,7 @@ end
 # Generate the header, with external definitions and the prototype
 File.open("#{basename}_glade.h", 'w') do |header|
   header.puts comment
-  elements.each do |k, v|
+  scan.widgets.each do |k, v|
     header.puts "extern #{v} * #{basename}_#{k};"
   end
   header.puts "\nvoid #{loadname} (char *, int);"
@@ -86,7 +105,7 @@ File.open("#{basename}_glade.c", 'w') do |source|
 #include \"#{basename}_glade.h\"
 
 C_HEAD
-  elements.each do |k, v|
+  scan.widgets.each do |k, v|
     source.puts "#{v} *#{basename}_#{k};"
   end
   source.puts <<C_BUILD
@@ -102,7 +121,7 @@ void #{loadname} (char *path, int unref) {
   gtk_builder_connect_signals (builder, NULL);
 C_BUILD
   buildcmd = 'GTK_WIDGET(gtk_builder_get_object(builder'
-  elements.each do |k, v|
+  scan.widgets.each do |k, v|
     source.puts "  #{basename}_#{k} = (#{v} *)#{buildcmd}, \"#{k}\"));"
   end
   source.puts <<C_FOOT
