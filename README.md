@@ -10,7 +10,7 @@ You have a GTK+ window layout in Glade named `xyz.glade`?  Copy it into your pro
 
     ruby GladeGlue.rb xyz
 
-Notice that there is no extension.
+Notice that there is no extension.  Also maybe note that the program doesn't really care about folder structure.
 
 GladeGlue will create glue code to simplify using your window.  Call `load_xyz_from_file()` in your main program, and use variables named after your widgets immediately.  The widget variables will be named as *`xyz`*_*`control_name`*.
 
