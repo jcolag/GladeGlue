@@ -1,4 +1,9 @@
 #!/usr/bin/ruby
+
+# SPDX-FileCopyrightText: 2014 John Colagioia <john@colagioia.net>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Encoding: utf-8
 require 'rexml/document'
 require 'find'
